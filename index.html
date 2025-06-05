@@ -29,6 +29,10 @@
             overflow: hidden;
             transition: all 0.3s ease-in-out;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+            /* Add animation for cell content */
+            display: flex; /* Ensure flex for centering X/O */
+            align-items: center;
+            justify-content: center;
         }
 
         .cell::before {
@@ -68,19 +72,62 @@
 
         .cell.text-blue-600 {
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-            transform: perspective(1000px) rotateY(0deg);
-            transition: transform 0.2s ease-out;
         }
 
         .cell.text-red-600 {
             text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
-            transform: perspective(1000px) rotateY(0deg);
-            transition: transform 0.2s ease-out;
         }
 
-        .cell.text-blue-600:hover,
-        .cell.text-red-600:hover {
-            transform: perspective(1000px) rotateY(5deg) scale(1.05);
+        /* Animation for X/O entry */
+        .cell span {
+            display: block; /* Ensure span takes up space for animation */
+            animation: cellPopIn 0.3s ease-out forwards;
+            transform: scale(0.5) rotateY(90deg); /* Initial state for animation */
+            opacity: 0;
+        }
+
+        @keyframes cellPopIn {
+            0% { transform: scale(0.5) rotateY(90deg); opacity: 0; }
+            80% { transform: scale(1.1) rotateY(-10deg); opacity: 1; }
+            100% { transform: scale(1) rotateY(0deg); opacity: 1; }
+        }
+
+        /* Animation for general message display changes */
+        @keyframes messageFadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        @keyframes messageFadeOut {
+            from { opacity: 1; transform: translateY(0); }
+            to { opacity: 0; transform: translateY(-10px); }
+        }
+
+        .message-anim-in { animation: messageFadeIn 0.4s ease-out forwards; }
+        .message-anim-out { animation: messageFadeOut 0.4s ease-out forwards; }
+
+        /* New animation for winning message */
+        @keyframes winnerMessageBlast {
+            0% { transform: scale(1); color: #4a5568; }
+            20% { transform: scale(1.2) rotate(-3deg); color: #22c55e; } /* Pop out and rotate slightly */
+            40% { transform: scale(1.1) rotate(3deg); color: #22c55e; }
+            60% { transform: scale(1.15) rotate(-1deg); color: #22c55e; }
+            80% { transform: scale(1.05) rotate(1deg); color: #22c55e; }
+            100% { transform: scale(1); color: #4a5568; } /* Return to normal state */
+        }
+        .winner-message-blast-anim {
+            animation: winnerMessageBlast 0.8s ease-out forwards;
+        }
+
+        /* New class for game panel pulse */
+        .game-win-pulse {
+            animation: gamePanelPulse 0.8s ease-out; /* Short, impactful pulse */
+        }
+
+        @keyframes gamePanelPulse {
+            0% { box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15); transform: scale(0.95); border-color: #d4eaf5; }
+            50% { box-shadow: 0 0 40px rgba(34, 197, 94, 0.7); border-color: #22c55e; transform: scale(0.97); } /* Stronger glow and slight scale */
+            100% { box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15); transform: scale(0.95); border-color: #d4eaf5; }
         }
 
         #message {
@@ -199,7 +246,7 @@
     </div>
 
     <div id="gameContainer">
-        <div class="bg-white p-8 sm:p-10 md:p-12 rounded-2xl shadow-3xl border border-gray-100 transform transition-all duration-300 ease-in-out scale-95">
+        <div id="gamePanel" class="bg-white p-8 sm:p-10 md:p-12 rounded-2xl shadow-3xl border border-gray-100 transform transition-all duration-300 ease-in-out scale-95">
             <h1 class="text-5xl sm:text-6xl font-extrabold text-gray-800 mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-700">
                 Tic Tac Toe
             </h1>
@@ -244,6 +291,7 @@
         const messageDisplay = document.getElementById('message');
         const introScreen = document.getElementById('introScreen');
         const gameContainer = document.getElementById('gameContainer');
+        const gamePanel = document.getElementById('gamePanel'); // Reference to the inner game panel div
         const playerXReadyBtn = document.getElementById('playerXReadyBtn');
         const playerOReadyBtn = document.getElementById('playerOReadyBtn');
         const readyMessage = document.getElementById('readyMessage');
@@ -267,6 +315,33 @@
         // Player ready states for the intro screen
         let playerXIsReady = false;
         let playerOIsReady = false;
+
+        /**
+         * Updates the message display with animations.
+         * Applies a special 'blast' animation for winning messages,
+         * and a fade-in/fade-out for regular turn messages.
+         * @param {string} text - The message to display.
+         * @param {boolean} [isWinner=false] - True if this is a winning message, false otherwise.
+         */
+        function updateMessage(text, isWinner = false) {
+            if (isWinner) {
+                // For winning message, apply specific blast animation
+                messageDisplay.classList.remove('message-anim-in', 'message-anim-out');
+                messageDisplay.textContent = text; // Set text immediately
+                messageDisplay.classList.add('winner-message-blast-anim');
+            } else {
+                // For regular messages, use fade animations
+                messageDisplay.classList.remove('winner-message-blast-anim'); // Remove any previous win anim
+                messageDisplay.classList.remove('message-anim-in');
+                messageDisplay.classList.add('message-anim-out');
+
+                setTimeout(() => {
+                    messageDisplay.textContent = text;
+                    messageDisplay.classList.remove('message-anim-out');
+                    messageDisplay.classList.add('message-anim-in');
+                }, 300); // Shorter than animation duration to allow for overlap
+            }
+        }
 
         /**
          * Hides the intro screen and shows the main game screen.
@@ -331,11 +406,16 @@
                     rounded-lg shadow-md border-2 border-gray-200 text-gray-800
                 `;
                 cell.dataset.index = idx; // Store cell index
-                cell.textContent = val; // Display current value (X, O, or empty)
+
+                // Create a span inside the cell for animation purposes
+                const cellContent = document.createElement('span');
+                cellContent.textContent = val;
+                cell.appendChild(cellContent);
+
                 cell.onclick = handleClick; // Attach click handler
                 gameBoard.appendChild(cell);
             });
-            messageDisplay.textContent = `Player ${currentPlayer}'s turn`; // Update turn message
+            updateMessage(`Player ${currentPlayer}'s turn`); // Update turn message with animation
         }
 
         /**
@@ -344,7 +424,8 @@
          * @param {Event} e - The click event object.
          */
         function handleClick(e) {
-            const idx = e.target.dataset.index; // Get the index of the clicked cell
+            const cell = e.target.closest('.cell'); // Ensure we get the cell element itself
+            const idx = cell.dataset.index; // Get the index of the clicked cell
 
             // If game is not active or cell is already filled, do nothing
             if (!gameActive || board[idx] !== '') {
@@ -352,13 +433,30 @@
             }
 
             board[idx] = currentPlayer; // Mark the cell with current player's symbol
-            e.target.textContent = currentPlayer; // Update cell content in UI
-            e.target.classList.add(currentPlayer === 'X' ? 'text-blue-600' : 'text-red-600'); // Add player-specific color class
+            
+            // Update cell content by replacing the span for animation
+            const cellContentSpan = cell.querySelector('span');
+            if (cellContentSpan) {
+                cellContentSpan.textContent = currentPlayer;
+                // Re-apply animation class to trigger it again
+                cellContentSpan.classList.remove('cellPopIn'); 
+                void cellContentSpan.offsetWidth; // Trigger reflow to restart animation
+                cellContentSpan.classList.add('cellPopIn');
+            } else {
+                // Fallback if span somehow doesn't exist (shouldn't happen with createBoard logic)
+                cell.textContent = currentPlayer;
+            }
+
+            cell.classList.add(currentPlayer === 'X' ? 'text-blue-600' : 'text-red-600'); // Add player-specific color class
 
             if (checkWinner()) {
-                messageDisplay.textContent = `Player ${currentPlayer} wins!`; // Display winner message
+                updateMessage(`Player ${currentPlayer} wins!`, true); // Display winner message with 'blast' animation
                 gameActive = false; // End the game
                 highlightWinningCells(); // Highlight the winning combination
+
+                // Add game panel pulse animation
+                gamePanel.classList.add('game-win-pulse');
+
                 // Increment win count for the winning player
                 if (currentPlayer === 'X') {
                     playerXWins++;
@@ -366,15 +464,21 @@
                     playerOWins++;
                 }
                 updateScoreDisplay(); // Update score display
+
+                // Remove animations after they complete to allow re-triggering
+                setTimeout(() => {
+                    messageDisplay.classList.remove('winner-message-blast-anim');
+                    gamePanel.classList.remove('game-win-pulse');
+                }, 800); // Match animation duration
             } else if (board.every(cell => cell !== '')) {
-                messageDisplay.textContent = "It's a draw! Restarting..."; // Display draw message
+                updateMessage("It's a draw! Restarting..."); // Display draw message with animation
                 gameActive = false; // End the game
                 setTimeout(() => {
                     restartGame(); // Restart game after a short delay
                 }, 1500);
             } else {
                 currentPlayer = currentPlayer === 'X' ? 'O' : 'X'; // Switch player
-                messageDisplay.textContent = `Player ${currentPlayer}'s turn`; // Update turn message
+                updateMessage(`Player ${currentPlayer}'s turn`); // Update turn message with animation
             }
         }
 
@@ -425,29 +529,12 @@
             gameActive = true; // Set game to active
             createBoard(); // Recreate the board UI
 
-            // Reset intro screen ready states and button styles as per original logic
-            playerXIsReady = false;
-            playerOIsReady = false;
-            playerXReadyBtn.disabled = false;
-            playerOReadyBtn.disabled = false;
-            playerXReadyBtn.classList.add('from-blue-500', 'to-indigo-600', 'focus:ring-blue-300');
-            playerXReadyBtn.classList.remove('from-gray-400', 'to-gray-500', 'cursor-not-allowed', 'focus:ring-gray-300');
-            playerOReadyBtn.classList.add('from-pink-500', 'to-red-600', 'focus:ring-pink-300');
-            playerOReadyBtn.classList.remove('from-gray-400', 'to-gray-500', 'cursor-not-allowed', 'focus:ring-gray-300');
-            playerXReadyBtn.textContent = 'Player X Ready!';
-            playerOReadyBtn.textContent = 'Player O Ready!';
-            readyMessage.textContent = ''; // Clear ready message
+            // Ensure the game container is visible and intro screen is hidden if it somehow reappeared
+            gameContainer.classList.add('show-game');
+            introScreen.classList.add('hide-intro');
+            introScreen.style.display = 'none';
 
-            // Transition back to intro screen as per original logic
-            if (gameContainer.classList.contains('show-game')) {
-                gameContainer.classList.remove('show-game');
-                setTimeout(() => {
-                    gameContainer.style.display = 'none';
-                    introScreen.style.display = 'flex';
-                    introScreen.classList.remove('hide-intro');
-                }, 1000); // Match hide-intro transition duration
-            }
-            updateScoreDisplay(); // Update score display, though it will reset if intro appears
+            updateScoreDisplay(); // Update score display
         }
 
         /**
@@ -463,8 +550,9 @@
 
         // Initialize display state on window load
         window.onload = function() {
-            introScreen.style.display = 'flex'; // Ensure intro screen is visible
-            gameContainer.style.display = 'none'; // Ensure game container is hidden initially
+            // Keep the intro screen visible initially until players are ready
+            introScreen.style.display = 'flex';
+            gameContainer.style.display = 'none';
             updateScoreDisplay(); // Initial score display (will be 0)
         };
     </script>
